@@ -1,0 +1,10 @@
+﻿{
+  "Name": "AutoBetOnGreen",
+  "Author": "Wesley Ribeiro",
+  "Version": "1.0.0",
+  "Description": "Allows the player to automatically bet a predefined amount of tokens in the Stardew Valley fair, skips choosing green on the dialogue so the game is more dynamic",
+  "UniqueID": "WesleyRibeiro.AutoBetOnGreen",
+  "EntryDll": "AutoBetOnGreen.dll",
+  "MinimumApiVersion": "4.0.0",
+  "UpdateKeys": []
+}
