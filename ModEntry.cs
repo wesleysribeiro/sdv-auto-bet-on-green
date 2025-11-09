@@ -1,10 +1,11 @@
-﻿using System;
-using Force.DeepCloner;
+﻿using Force.DeepCloner;
 using Microsoft.Xna.Framework;
 using StardewModdingAPI;
 using StardewModdingAPI.Events;
 using StardewModdingAPI.Utilities;
 using StardewValley;
+using StardewValley.Menus;
+using System;
 
 namespace AutoBetOnGreen
 {
@@ -25,17 +26,39 @@ namespace AutoBetOnGreen
 
         private void OnMenuChanged(object? sender, MenuChangedEventArgs e)
         {
-            if (e.OldMenu != null)
+            this.Monitor.Log($"Got inside OnMenuChanged");
+            if (e.NewMenu == null)
             {
+                this.Monitor.Log($"NewMenu is null");
                 return;
             }
-            if (e.NewMenu == null)
+            if (Game1.CurrentEvent?.isSpecificFestival("fall16") is not true)
+            {
+                this.Monitor.Log($"Not fair 16");
+                return;
+            }
+
+            if (Game1.currentLocation?.lastQuestionKey != "wheelBet")
+            {
+                this.Monitor.Log($"Last question is not wheelBet");
+                return;
+            }
+
+            int playerScore = Game1.player.festivalScore;
+            int amountToBet = (int) Math.Ceiling(playerScore / 0.467);
+            if (amountToBet <= 0)
             {
                 return;
             }
 
-            int playerMoney = Game1.player.Money;
-            this.Monitor.Log($"Menu changed to {e.NewMenu.ToString()}.", LogLevel.Debug);
+            this.Monitor.Log($"Checking new menu");
+
+            if (e.NewMenu is DialogueBox dialogueBox)
+            {
+                this.Monitor.Log($"Answering dialog");
+                // chose green
+                Game1.CurrentEvent?.answerDialogue("wheelBet", 1);
+            }
         }
 
 
