@@ -1,8 +1,7 @@
 ﻿using Force.DeepCloner;
-using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Input;
 using StardewModdingAPI;
 using StardewModdingAPI.Events;
-using StardewModdingAPI.Utilities;
 using StardewValley;
 using StardewValley.Menus;
 using System;
@@ -12,16 +11,13 @@ namespace AutoBetOnGreen
     /// <summary>The mod entry point.</summary>
     internal sealed class ModEntry : Mod
     {
-        /*********
-        ** Public methods
-        *********/
-        /// <summary>The mod entry point, called after the mod is first loaded.</summary>
-        /// <param name="helper">Provides simplified APIs for writing mods.</param>
+        public bool SubmitQueued { get; private set; } = false;
+        public NumberSelectionMenu? StarTokensValueDialog { get; private set; } = null;
+
         public override void Entry(IModHelper helper)
         {
-            //helper.Events.Input.ButtonPressed += this.
-            //OnButtonPressed
             helper.Events.Display.MenuChanged += this.OnMenuChanged;
+            helper.Events.GameLoop.OneSecondUpdateTicked += OnOneSecondUpdateTicked;
         }
 
         private void OnMenuChanged(object? sender, MenuChangedEventArgs e)
@@ -44,38 +40,51 @@ namespace AutoBetOnGreen
                 return;
             }
 
-            int playerScore = Game1.player.festivalScore;
-            int amountToBet = (int) Math.Ceiling(playerScore / 0.467);
-            if (amountToBet <= 0)
-            {
-                return;
-            }
-
             this.Monitor.Log($"Checking new menu");
 
             if (e.NewMenu is DialogueBox dialogueBox)
             {
                 this.Monitor.Log($"Answering dialog");
-                // chose green
+                // Chose green
                 Game1.CurrentEvent?.answerDialogue("wheelBet", 1);
+                //if (Game1.currentLocation is { } loc)
+                //{
+                //    // TODO: Fix this
+                //    // Reset last question so when we interact with an NPC after interacting with the wheel it doesn't try to spin the wheel
+                //    //loc.lastQuestionKey = null;
+                //}
+
+                return;
+            }
+
+            int playerScore = Game1.player.festivalScore;
+            int amountToBet = (int)Math.Floor(playerScore * 0.467);
+
+            this.Monitor.Log($"Amount to bet {amountToBet}");
+            if (amountToBet <= 0)
+            {
+                return;
+            }
+
+            if (e.NewMenu is NumberSelectionMenu numberSelectionMenu)
+            {
+                StarTokensValueDialog = numberSelectionMenu;
+                var tokensInput = Helper.Reflection.GetField<TextBox>(numberSelectionMenu, "numberSelectedBox").GetValue();
+                tokensInput.Text = amountToBet.ToString();
+
+
+                // Schedule submit value
+                SubmitQueued = true;
             }
         }
 
-
-        /*********
-        ** Private methods
-        *********/
-        /// <summary>Raised after the player presses a button on the keyboard, controller, or mouse.</summary>
-        /// <param name="sender">The event sender.</param>
-        /// <param name="e">The event data.</param>
-        private void OnButtonPressed(object? sender, ButtonPressedEventArgs e)
+        private void OnOneSecondUpdateTicked(object? sender, OneSecondUpdateTickedEventArgs e)
         {
-            //// ignore if player hasn't loaded a save yet
-            //if (!Context.IsWorldReady)
-            //    return;
-
-            //// print button presses to the console window
-            //this.Monitor.Log($"{Game1.player.Name} pressed {e.Button}.", LogLevel.Debug);
+            if(SubmitQueued)
+            {
+                StarTokensValueDialog?.receiveKeyPress(Keys.Enter);
+                SubmitQueued = false;
+            }
         }
     }
 }
