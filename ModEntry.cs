@@ -14,10 +14,20 @@ namespace AutoBetOnGreen
         public bool SubmitQueued { get; private set; } = false;
         public NumberSelectionMenu? StarTokensValueDialog { get; private set; } = null;
 
+        private string ChooseSpinningWheelColorText = "";
+        private string StarTokensInputDialogText = "";
+
         public override void Entry(IModHelper helper)
         {
             helper.Events.Display.MenuChanged += this.OnMenuChanged;
-            helper.Events.GameLoop.OneSecondUpdateTicked += OnOneSecondUpdateTicked;
+            helper.Events.Content.LocaleChanged += this.OnLocaleChanged;
+
+            LoadDialogStrings();
+        }
+
+        private void OnLocaleChanged(object? sender, LocaleChangedEventArgs e)
+        {
+            LoadDialogStrings();
         }
 
         private void OnMenuChanged(object? sender, MenuChangedEventArgs e)
@@ -34,26 +44,22 @@ namespace AutoBetOnGreen
                 return;
             }
 
+            this.Monitor.Log($"Checking new menu");
+
             if (Game1.currentLocation?.lastQuestionKey != "wheelBet")
             {
                 this.Monitor.Log($"Last question is not wheelBet");
                 return;
             }
 
-            this.Monitor.Log($"Checking new menu");
-
             if (e.NewMenu is DialogueBox dialogueBox)
             {
-                this.Monitor.Log($"Answering dialog");
-                // Chose green
-                Game1.CurrentEvent?.answerDialogue("wheelBet", 1);
-                //if (Game1.currentLocation is { } loc)
-                //{
-                //    // TODO: Fix this
-                //    // Reset last question so when we interact with an NPC after interacting with the wheel it doesn't try to spin the wheel
-                //    //loc.lastQuestionKey = null;
-                //}
+                if (!IsChoosingColorDialog(dialogueBox))
+                    return;
 
+                this.Monitor.Log($"Answering dialog");
+
+                SelectGreenOnDialog(dialogueBox);
                 return;
             }
 
@@ -68,23 +74,56 @@ namespace AutoBetOnGreen
 
             if (e.NewMenu is NumberSelectionMenu numberSelectionMenu)
             {
+                if (!IsStarTokensToBetInputDialog(numberSelectionMenu))
+                    return;
+
                 StarTokensValueDialog = numberSelectionMenu;
                 var tokensInput = Helper.Reflection.GetField<TextBox>(numberSelectionMenu, "numberSelectedBox").GetValue();
                 tokensInput.Text = amountToBet.ToString();
 
-
                 // Schedule submit value
                 SubmitQueued = true;
+                Helper.Events.GameLoop.OneSecondUpdateTicked += this.OnOneSecondUpdateTicked;
             }
         }
 
         private void OnOneSecondUpdateTicked(object? sender, OneSecondUpdateTickedEventArgs e)
         {
-            if(SubmitQueued)
+            if (SubmitQueued)
             {
                 StarTokensValueDialog?.receiveKeyPress(Keys.Enter);
                 SubmitQueued = false;
+                Helper.Events.GameLoop.OneSecondUpdateTicked -= this.OnOneSecondUpdateTicked;
             }
+        }
+
+        private void SelectGreenOnDialog(DialogueBox dialogueBox)
+        {
+            Game1.CurrentEvent?.answerDialogue("wheelBet", 1);
+        }
+
+        private bool IsChoosingColorDialog(DialogueBox dialogueBox)
+        {
+            if (dialogueBox == null)
+                return false;
+
+            return dialogueBox.getCurrentString() == ChooseSpinningWheelColorText;
+        }
+
+        private bool IsStarTokensToBetInputDialog(NumberSelectionMenu numberSelectionMenu)
+        {
+            if (numberSelectionMenu == null)
+                return false;
+
+            return Helper.Reflection.GetField<string>(numberSelectionMenu, "message").GetValue() == StarTokensInputDialogText;
+        }
+
+        private void LoadDialogStrings()
+        {
+            ChooseSpinningWheelColorText = Game1.content.LoadString("Strings\\StringsFromCSFiles:Event.cs.1652");
+            StarTokensInputDialogText = Game1.content.LoadString("Strings\\StringsFromCSFiles:Event.cs.1776");
+            this.Monitor.Log($"ChooseSpinningWheelColorText = {ChooseSpinningWheelColorText}");
+            this.Monitor.Log($"StarTokensInputDialogText = {StarTokensInputDialogText}");
         }
     }
 }
